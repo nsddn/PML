@@ -1,11 +1,15 @@
 ---
-title: "Project Machine Learning - Course Project"
+title: "Practical Machine Learning- Project"
 author: "Nidhi Shrivastava"
-date: "Thursday, May 14, 2015"
-output: html_document
+date: "Saturday, May 16, 2015"
+output:
+  ioslides_presentation:
+    fig_width: 6.5
+    smaller: yes
+  beamer_presentation: default
 ---
 
-#Repoducibility
+##Repoducibility
 
 In order to reproduce the same resullts you need a certain set of packages, as well as setting a pseudo random seed equal to the one I used.
 
@@ -13,36 +17,25 @@ In order to reproduce the same resullts you need a certain set of packages, as w
 
 The following libraries were used in this project, which you shoud install and load the working environment.
 
+##Loading libraries
 ```{r}
 suppressWarnings(library(caret))
-```
-```{r}
 suppressWarnings(library(rpart))
 suppressWarnings(library(rpart.plot))
-
 suppressWarnings(library(RColorBrewer))
 suppressWarnings(library(rattle))
-```
-```{r}
 suppressWarnings(library(randomForest))
-```
-
-```{r}
-##load the same seed using the command
-
 set.seed(12345)
-
 ```
 
 ##Getting the Data
 The training data set can be loaded using the following command
 
-```{r}
+```{r, size=10}
 
 training<-read.csv("./data/pml-training.csv", na.strings=c("NA", "#DIV/0!",""))
 
 testing<-read.csv("./data/pml-testing.csv", na.strings=c("NA", "#DIV/0!",""))
-
 
 ```
 ##Clean the Data
@@ -55,32 +48,31 @@ sum(complete.cases(training))
 
 First, we remove columns that contain NA missing values.
 
-```{r}
+```{r, size = 10}
 
 training<-training[, colSums(is.na(training))==0]
 testing<-testing[, colSums(is.na(testing))==0]
 ```
-
+##Splitting the raw data -trainData
 Next, we get rid of some columns that do not contribute much to the accelerometer measurements.
 
-```{r}
+```{r, size=10}
 classe<-training$classe
 trainRemove<-grepl("^X|timestamp|window", names(training))
 training<-training[, !trainRemove]
 trainCleaned<-training[, sapply(training, is.numeric)]
 
 trainCleaned$classe<-classe
+```
 
-##removing from the test data
+##Splitting the raw data -testData
+```{r, size=10}
 
 testRemove<-grepl("^X|timestamp|window", names(testing))
 testing<-testing[, !testRemove]
 testCleaned<-testing[, sapply(testing, is.numeric)]
 
-dim(trainCleaned); dim(testCleaned)
-
 ```
-
 Now, the data is cleaned data set contains 19622 observations and 53 variables, while  test data set contains 20 obsvervations and 53 variables. The classe variable is stil in the cleaned training data set.
 
 ##Slice the data
@@ -92,36 +84,32 @@ set.seed(22519) ##for reproducible purpose
 inTrain<-createDataPartition(trainCleaned$classe, p=0.7, list=FALSE)
 trainData<-training[inTrain, ]
 testData<-training[-inTrain, ]
-
-dim(trainData);dim(testData)
-
 ```
-
+##View of the data
+```{r, size=10, echo=FALSE}
+dim(trainData)
+dim(testData)
+```
 ##Data Modelling
 
 We fit a predictive model for activity recognition using *Random Forest* algorithm because it automatically selects important variables and is robust to correlated covariates & outliers in general. We will use 5-fold cross validation when applying the algorithm.
 
-
-```{r}
-
+##Analising the data 
+- Predict and Accuracy
+```{r, echo=FALSE, size=10}
 modelFit<-rpart(classe~., data=trainData, method="class")
-
-```
-
-Then, we estimate the performance of the model on validation data set.
-
-```{r}
 predictRf<-predict(modelFit, testData, type="class")
 confusionMatrix(predictRf, testData$classe)
-
 accuracy<-postResample(predictRf, testData$classe)
 accuracy
-
-sampleError<-1-as.numeric(confusionMatrix(testData$classe, predictRf)$overall[1])
-
-sampleError
-
 ```
+##Analising the data
+- out-of-sample error
+```{r}
+sampleError<-1-as.numeric(confusionMatrix(testData$classe, predictRf)$overall[1])
+sampleError
+```
+##Conclusion
 So the estimated accuracy of the model is 75.61% and the estimated out-of-sample error is 24.38%. *Random Forsts* yielded better prediction, as expected.
 
 ##Generating Files to submit 
@@ -129,12 +117,12 @@ Finally using the provided test Out-of-sample error.
 
 For Random Forest we use the following formula, which yielded the better prediction in sample.
 
-```{r}
+```{r, echo=FALSE}
 predictRf<-predict(modelFit, testData, type="class")
 ```
 To generate files with predictions for this assignment.
 
-```{r}
+```{r, size=10}
 pml_files<-function(x){
         n=length(x)
         for(i in 1:n){
@@ -145,17 +133,11 @@ pml_files<-function(x){
 pml_files(predictRf)
 
 ```
-##Appendix:Figures
+##Appendix:Figure 1
 
 1. Decision Tree Visualization
-```{r}
+```{r, echo=FALSE}
 fancyRpartPlot(modelFit, main="Decision Tree Visualisation")
-
-```
-
-2. Tree Visualization
-```{r}
 treeModel <- rpart(classe ~ ., data=trainData, method="class", cp=.02)
-prp(treeModel) 
-
+prp(treeModel)
 ```
