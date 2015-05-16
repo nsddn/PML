@@ -1,0 +1,161 @@
+---
+title: "Project Machine Learning - Course Project"
+author: "Nidhi Shrivastava"
+date: "Thursday, May 14, 2015"
+output: html_document
+---
+
+#Repoducibility
+
+In order to reproduce the same resullts you need a certain set of packages, as well as setting a pseudo random seed equal to the one I used.
+
+*Note: to install 'caret' package in R you have to use the command: install.packages("caret")
+
+The following libraries were used in this project, which you shoud install and load the working environment.
+
+```{r}
+suppressWarnings(library(caret))
+```
+```{r}
+suppressWarnings(library(rpart))
+suppressWarnings(library(rpart.plot))
+
+suppressWarnings(library(RColorBrewer))
+suppressWarnings(library(rattle))
+```
+```{r}
+suppressWarnings(library(randomForest))
+```
+
+```{r}
+##load the same seed using the command
+
+set.seed(12345)
+
+```
+
+##Getting the Data
+The training data set can be loaded using the following command
+
+```{r}
+
+training<-read.csv("./data/pml-training.csv", na.strings=c("NA", "#DIV/0!",""))
+
+testing<-read.csv("./data/pml-testing.csv", na.strings=c("NA", "#DIV/0!",""))
+
+
+```
+##Clean the Data
+
+In this step we will clean the data and get rid of the missing values and unknown variables
+
+```{r}
+sum(complete.cases(training))
+```
+
+First, we remove columns that contain NA missing values.
+
+```{r}
+
+training<-training[, colSums(is.na(training))==0]
+testing<-testing[, colSums(is.na(testing))==0]
+```
+
+Next, we get rid of some columns that do not contribute much to the accelerometer measurements.
+
+```{r}
+classe<-training$classe
+trainRemove<-grepl("^X|timestamp|window", names(training))
+training<-training[, !trainRemove]
+trainCleaned<-training[, sapply(training, is.numeric)]
+
+trainCleaned$classe<-classe
+
+##removing from the test data
+
+testRemove<-grepl("^X|timestamp|window", names(testing))
+testing<-testing[, !testRemove]
+testCleaned<-testing[, sapply(testing, is.numeric)]
+
+dim(trainCleaned); dim(testCleaned)
+
+```
+
+Now, the data is cleaned data set contains 19622 observations and 53 variables, while  test data set contains 20 obsvervations and 53 variables. The classe variable is stil in the cleaned training data set.
+
+##Slice the data
+
+Then, we can split the cleaned training set into a pure training data set(70%) and a validation data set(30%) and use it for cross validaton.
+
+```{r}
+set.seed(22519) ##for reproducible purpose
+inTrain<-createDataPartition(trainCleaned$classe, p=0.7, list=FALSE)
+trainData<-training[inTrain, ]
+testData<-training[-inTrain, ]
+
+dim(trainData);dim(testData)
+
+```
+
+##Data Modelling
+
+We fit a predictive model for activity recognition using *Random Forest* algorithm because it automatically selects important variables and is robust to correlated covariates & outliers in general. We will use 5-fold cross validation when applying the algorithm.
+
+
+```{r}
+
+modelFit<-rpart(classe~., data=trainData, method="class")
+
+```
+
+Then, we estimate the performance of the model on validation data set.
+
+```{r}
+predictRf<-predict(modelFit, testData, type="class")
+confusionMatrix(predictRf, testData$classe)
+
+accuracy<-postResample(predictRf, testData$classe)
+accuracy
+
+sampleError<-1-as.numeric(confusionMatrix(testData$classe, predictRf)$overall[1])
+
+sampleError
+
+```
+So the estimated accuracy of the model is 75.61% and the estimated out-of-sample error is 24.38%. *Random Forsts* yielded better prediction, as expected.
+
+##Generating Files to submit 
+Finally using the provided test Out-of-sample error.
+
+For Random Forest we use the following formula, which yielded the better prediction in sample.
+
+```{r}
+predictRf<-predict(modelFit, testData, type="class")
+```
+To generate files with predictions for this assignment.
+
+```{r}
+pml_files<-function(x){
+        n=length(x)
+        for(i in 1:n){
+                filename<-paste0("./text_files/id_", i, ".txt")
+                write.table(x[i], file=filename, quote = FALSE, row.names=FALSE, col.names=FALSE)
+        }
+}
+pml_files(predictRf)
+
+```
+##Appendix:Figures
+
+1. Decision Tree Visualization
+```{r}
+fancyRpartPlot(modelFit, main="Decision Tree Visualisation")
+
+```
+
+2. Tree Visualization
+```{r}
+treeModel <- rpart(classe ~ ., data=trainData, method="class", cp=.02)
+prp(treeModel) 
+
+```
